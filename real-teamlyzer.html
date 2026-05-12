@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Teamlyzer · Company Data Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0b0d10;
+      --surface:   #13161b;
+      --border:    #222630;
+      --accent:    #00e5a0;
+      --accent2:   #005cff;
+      --warn:      #ffb800;
+      --text:      #e2e8f0;
+      --muted:     #5a6478;
+      --row-hover: #181c24;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── Header ── */
+    header {
+      max-width: 1100px;
+      margin: 0 auto 2.5rem;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+
+    .logo {
+      font-family: var(--sans);
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--accent);
+    }
+    .logo span { color: var(--text); }
+
+    .tagline {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-top: 0.2rem;
+    }
+
+    /* ── Controls bar ── */
+    .controls {
+      max-width: 1100px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.55rem 1.2rem;
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+    .btn-primary:hover { background: #00ffb3; }
+    .btn-primary:disabled {
+      background: #1a3d2e;
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    .btn-stop {
+      background: transparent;
+      color: #ff5252;
+      border: 1px solid #ff5252;
+    }
+    .btn-stop:hover { background: rgba(255,82,82,0.08); }
+    .btn-stop:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .btn-clear {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-clear:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Status bar ── */
+    #status-bar {
+      max-width: 1100px;
+      margin: 0 auto 1rem;
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      font-size: 0.72rem;
+      color: var(--muted);
+      align-items: center;
+    }
+
+    .stat { display: flex; gap: 0.4rem; align-items: center; }
+    .stat-val { color: var(--accent); font-weight: 600; }
+
+    .pulse {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulseAnim 1s infinite;
+      display: none;
+    }
+    .pulse.active { display: block; }
+    @keyframes pulseAnim {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.3; transform: scale(0.6); }
+    }
+
+    #log-line {
+      font-size: 0.68rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      max-width: 1100px;
+      margin: 0 auto 1.5rem;
+      height: 2px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    /* ── Search & sort area ── */
+    .table-toolbar {
+      max-width: 1100px;
+      margin: 0 auto 0.8rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    #search {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.8rem;
+      border-radius: 4px;
+      width: 240px;
+      transition: border-color 0.15s;
+    }
+    #search::placeholder { color: var(--muted); }
+    #search:focus { outline: none; border-color: var(--accent); }
+
+    .row-count {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    thead { background: var(--surface); position: sticky; top: 0; z-index: 2; }
+
+    th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    th:hover { color: var(--text); }
+    th .sort-icon { margin-left: 0.3rem; font-style: normal; opacity: 0.4; }
+    th.sort-asc .sort-icon, th.sort-desc .sort-icon { opacity: 1; color: var(--accent); }
+
+    td {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 0.1s; }
+    tbody tr:hover { background: var(--row-hover); }
+
+    /* skeleton rows */
+    .skeleton td {
+      padding: 0.85rem 1rem;
+    }
+    .skel {
+      display: inline-block;
+      height: 10px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--border) 25%, #2a2f3a 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* company name column */
+    .company-cell a {
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .company-cell a:hover { color: var(--accent); text-decoration: underline; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.62rem;
+      padding: 0.18rem 0.45rem;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+      background: rgba(0,229,160,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0,229,160,0.2);
+      vertical-align: middle;
+    }
+
+    /* salary bar */
+    .salary-cell { white-space: nowrap; }
+
+    /* hours */
+    .hours-cell { color: var(--warn); }
+
+    /* n/a */
+    .na { color: var(--muted); font-size: 0.72rem; }
+
+    /* row enter animation */
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .row-new { animation: rowIn 0.3s ease both; }
+
+    /* ── Empty state ── */
+    #empty {
+      max-width: 1100px;
+      margin: 3rem auto;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      display: none;
+    }
+    #empty.visible { display: block; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Team<span>lyzer</span> Explorer</div>
+    <div class="tagline">Real-time company data · Portugal</div>
+  </div>
+</header>
+
+<div class="controls">
+  <button class="btn btn-primary" id="btn-start">▶ Start Crawl</button>
+  <button class="btn btn-stop"    id="btn-stop"  disabled>■ Stop</button>
+  <button class="btn btn-clear"   id="btn-clear" disabled>⟳ Clear</button>
+</div>
+
+<div id="status-bar">
+  <span class="stat"><span class="pulse" id="pulse"></span></span>
+  <span class="stat">Page: <span class="stat-val" id="s-page">—</span></span>
+  <span class="stat">Fetched: <span class="stat-val" id="s-fetched">0</span></span>
+  <span class="stat">In table: <span class="stat-val" id="s-rows">0</span></span>
+  <span id="log-line">Idle.</span>
+</div>
+
+<div class="progress-wrap"><div id="progress-bar"></div></div>
+
+<div class="table-toolbar">
+  <input type="text" id="search" placeholder="Filter companies…" autocomplete="off">
+  <span class="row-count" id="row-count">0 companies</span>
+</div>
+
+<div class="table-wrap">
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th data-col="name"    class="sort-asc">Company <i class="sort-icon">↑</i></th>
+        <th data-col="salary">Salary Range <i class="sort-icon">⇅</i></th>
+        <th data-col="hours">Avg. Hours <i class="sort-icon">⇅</i></th>
+        <th data-col="url">Link <i class="sort-icon"></i></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+<div id="empty">No results match your filter.</div>
+
+<!-- CORS proxy note (shown only if blocked) -->
+<div id="cors-warning" style="display:none;max-width:1100px;margin:1.5rem auto;padding:1rem 1.2rem;background:#1a1209;border:1px solid #ffb800;border-radius:6px;font-size:0.75rem;color:#ffb800;line-height:1.7;">
+  ⚠ <strong>CORS restriction detected.</strong> Browsers block direct cross-origin requests to teamlyzer.com.<br>
+  To run this tool properly, serve it through a CORS-capable proxy or open it via a browser extension that disables CORS (e.g. <em>CORS Unblock</em>).
+  Alternatively, run a local proxy:<br>
+  <code style="background:#111;padding:0.2rem 0.5rem;border-radius:3px;">npx cors-anywhere</code> then update <code>PROXY</code> at the top of the script.
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const BASE      = 'https://pt.teamlyzer.com';
+const LIST_PATH = '/companies/?page=';
+
+// If you have a local CORS proxy, set it here, e.g.:
+// const PROXY = 'http://localhost:8080/';
+// Then URLs become: PROXY + encodeURIComponent(BASE + ...)
+const PROXY = '';  // empty = direct (will fail in browser without extension)
+
+// Concurrency: how many company pages to fetch in parallel
+const CONCURRENCY = 3;
+
+// Delay between list-page fetches (ms)
+const PAGE_DELAY  = 600;
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let companies = [];   // { name, url, salary, hours }
+let running   = false;
+let abortCtrl = null;
+
+let sortCol = 'name';
+let sortDir = 'asc';
+let filterQ = '';
+
+// ─────────────────────────────────────────────
+// DOM refs
+// ─────────────────────────────────────────────
+const tbody    = document.getElementById('tbody');
+const sSalary  = document.getElementById('s-fetched');
+const sRows    = document.getElementById('s-rows');
+const sPage    = document.getElementById('s-page');
+const logLine  = document.getElementById('log-line');
+const pulse    = document.getElementById('pulse');
+const progBar  = document.getElementById('progress-bar');
+const btnStart = document.getElementById('btn-start');
+const btnStop  = document.getElementById('btn-stop');
+const btnClear = document.getElementById('btn-clear');
+const rowCount = document.getElementById('row-count');
+const searchEl = document.getElementById('search');
+const corsWarn = document.getElementById('cors-warning');
+
+// ─────────────────────────────────────────────
+// Fetch helper (with optional proxy)
+// ─────────────────────────────────────────────
+async function fetchHTML(url, signal) {
+  const target = PROXY ? PROXY + encodeURIComponent(url) : url;
+  const res = await fetch(target, { signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+
+// ─────────────────────────────────────────────
+// Parsers
+// ─────────────────────────────────────────────
+function parseCompanyLinks(html) {
+  // Match hrefs ending in /salary-reviews
+  const re = /href="(\/companies\/([^"\/]+)\/salary-reviews)"/g;
+  const found = [];
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    found.push({ slug: m[2], path: m[1] });
+  }
+  return found;
+}
+
+function parseSalary(html) {
+  // <p class="size-h2"> 1.385€ - 1.585€
+  const m = html.match(/<p[^>]+class="size-h2"[^>]*>\s*([\d.,]+€\s*-\s*[\d.,]+€)/);
+  return m ? m[1].trim() : null;
+}
+
+function parseHours(html) {
+  // <p class="size-h2"> 08:43<small>...
+  const m = html.match(/<p[^>]+class="size-h2"[^>]*>\s*(\d{2}:\d{2})\s*<small/);
+  return m ? m[1] : null;
+}
+
+function hasNextPage(html) {
+  // Presence of a "next" page link
+  return /href="\/companies\/\?page=\d+"/.test(html) ||
+         /page=(\d+)/.test(html);
+}
+
+// ─────────────────────────────────────────────
+// Table render
+// ─────────────────────────────────────────────
+function salaryToNum(s) {
+  if (!s) return -Infinity;
+  const nums = s.replace(/\./g, '').match(/\d+/g);
+  return nums ? +nums[0] : -Infinity;
+}
+
+function hoursToNum(h) {
+  if (!h) return -Infinity;
+  const [hh, mm] = h.split(':');
+  return +hh * 60 + (+mm || 0);
+}
+
+function filtered() {
+  const q = filterQ.toLowerCase();
+  return q
+    ? companies.filter(c => c.name.toLowerCase().includes(q))
+    : companies.slice();
+}
+
+function sorted(arr) {
+  return arr.slice().sort((a, b) => {
+    let va, vb;
+    if (sortCol === 'name') {
+      va = a.name; vb = b.name;
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    if (sortCol === 'salary') { va = salaryToNum(a.salary); vb = salaryToNum(b.salary); }
+    if (sortCol === 'hours')  { va = hoursToNum(a.hours);   vb = hoursToNum(b.hours);   }
+    return sortDir === 'asc' ? va - vb : vb - va;
+  });
+}
+
+function renderTable(animate = false) {
+  const rows = sorted(filtered());
+  rowCount.textContent = `${rows.length} compan${rows.length === 1 ? 'y' : 'ies'}`;
+
+  tbody.innerHTML = '';
+  rows.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    if (animate) tr.className = 'row-new';
+    tr.style.animationDelay = animate ? `${i * 30}ms` : '0ms';
+
+    tr.innerHTML = `
+      <td class="company-cell">
+        <a href="${BASE}/companies/${c.slug}" target="_blank" rel="noopener">${c.name}</a>
+        ${c.fresh ? '<span class="badge">new</span>' : ''}
+      </td>
+      <td class="salary-cell">${c.salary || '<span class="na">n/a</span>'}</td>
+      <td class="hours-cell">${c.hours  || '<span class="na">n/a</span>'}</td>
+      <td><a href="${BASE}/companies/${c.slug}" target="_blank" rel="noopener" style="color:var(--accent2);font-size:0.7rem">↗ open</a></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('empty').classList.toggle('visible', rows.length === 0 && filterQ.length > 0);
+  sRows.textContent = companies.length;
+}
+
+// ─────────────────────────────────────────────
+// Log / status helpers
+// ─────────────────────────────────────────────
+function log(msg) { logLine.textContent = msg; }
+function setPage(n) { sPage.textContent = n; }
+
+function animateProgress(pct) {
+  progBar.style.width = pct + '%';
+}
+
+// ─────────────────────────────────────────────
+// Skeleton rows while loading
+// ─────────────────────────────────────────────
+function showSkeleton(n = 5) {
+  tbody.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const tr = document.createElement('tr');
+    tr.className = 'skeleton';
+    const widths = [120 + Math.random() * 80, 90, 40];
+    tr.innerHTML = widths.map(w =>
+      `<td><span class="skel" style="width:${w}px"></span></td>`
+    ).join('') + '<td></td>';
+    tbody.appendChild(tr);
+  }
+}
+
+// ─────────────────────────────────────────────
+// Main crawl loop
+// ─────────────────────────────────────────────
+async function crawl() {
+  abortCtrl = new AbortController();
+  const sig  = abortCtrl.signal;
+  let page   = 1;
+  let fetched = 0;
+  let morePages = true;
+
+  pulse.classList.add('active');
+  showSkeleton();
+
+  while (morePages && running) {
+    setPage(page);
+    log(`Fetching company list — page ${page}…`);
+
+    let listHTML;
+    try {
+      listHTML = await fetchHTML(BASE + LIST_PATH + page, sig);
+    } catch (e) {
+      if (e.name === 'AbortError') break;
+      if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        corsWarn.style.display = 'block';
+      }
+      log(`Error fetching list page ${page}: ${e.message}`);
+      break;
+    }
+
+    const links = parseCompanyLinks(listHTML);
+    if (links.length === 0) { morePages = false; break; }
+
+    // Check if there's a next page
+    const nextPageRe = new RegExp(`page=${page + 1}`);
+    morePages = nextPageRe.test(listHTML);
+
+    // Fetch company pages in batches
+    for (let i = 0; i < links.length && running; i += CONCURRENCY) {
+      const batch = links.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(async ({ slug, path }) => {
+        if (!running) return;
+        // Skip if already have this company
+        if (companies.find(c => c.slug === slug)) return;
+
+        log(`Fetching ${slug}…`);
+        try {
+          const url = BASE + path.replace('/salary-reviews', '');
+          const html = await fetchHTML(url, sig);
+          const salary = parseSalary(html);
+          const hours  = parseHours(html);
+
+          const entry = {
+            slug,
+            name:   slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            url,
+            salary,
+            hours,
+            fresh: true,
+          };
+          companies.push(entry);
+          fetched++;
+          sSalary.textContent = fetched;
+
+          renderTable(false);
+
+          // Remove "fresh" badge after 3s
+          setTimeout(() => {
+            const c = companies.find(x => x.slug === slug);
+            if (c) { c.fresh = false; }
+          }, 3000);
+
+        } catch (e) {
+          if (e.name !== 'AbortError') log(`Skip ${slug}: ${e.message}`);
+        }
+      }));
+    }
+
+    animateProgress(morePages ? (page % 10) * 10 : 100);
+    page++;
+
+    if (morePages && running) {
+      await delay(PAGE_DELAY, sig);
+    }
+  }
+
+  running = false;
+  pulse.classList.remove('active');
+  btnStart.disabled = false;
+  btnStop.disabled  = true;
+  btnClear.disabled = false;
+  log(companies.length > 0 ? `Done. ${companies.length} companies loaded.` : 'Finished (no data — check CORS settings).');
+  animateProgress(100);
+}
+
+function delay(ms, signal) {
+  return new Promise((res, rej) => {
+    const t = setTimeout(res, ms);
+    signal.addEventListener('abort', () => { clearTimeout(t); rej(new DOMException('AbortError', 'AbortError')); });
+  });
+}
+
+// ─────────────────────────────────────────────
+// Controls
+// ─────────────────────────────────────────────
+btnStart.addEventListener('click', () => {
+  if (running) return;
+  running = true;
+  btnStart.disabled = true;
+  btnStop.disabled  = false;
+  btnClear.disabled = true;
+  crawl();
+});
+
+btnStop.addEventListener('click', () => {
+  running = false;
+  if (abortCtrl) abortCtrl.abort();
+  pulse.classList.remove('active');
+  btnStart.disabled = false;
+  btnStop.disabled  = true;
+  btnClear.disabled = false;
+  log('Stopped by user.');
+});
+
+btnClear.addEventListener('click', () => {
+  companies = [];
+  tbody.innerHTML = '';
+  sRows.textContent = '0';
+  sSalary.textContent = '0';
+  sPage.textContent = '—';
+  rowCount.textContent = '0 companies';
+  progBar.style.width = '0%';
+  log('Idle.');
+  btnClear.disabled = true;
+  btnStart.disabled = false;
+  corsWarn.style.display = 'none';
+});
+
+// ─────────────────────────────────────────────
+// Search
+// ─────────────────────────────────────────────
+searchEl.addEventListener('input', () => {
+  filterQ = searchEl.value.trim();
+  renderTable(false);
+});
+
+// ─────────────────────────────────────────────
+// Sort
+// ─────────────────────────────────────────────
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (col === 'url') return;
+    if (sortCol === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = col;
+      sortDir = 'asc';
+    }
+    document.querySelectorAll('th').forEach(h => {
+      h.classList.remove('sort-asc', 'sort-desc');
+      const icon = h.querySelector('.sort-icon');
+      if (icon) icon.textContent = '⇅';
+    });
+    th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = sortDir === 'asc' ? '↑' : '↓';
+    renderTable(false);
+  });
+});
+</script>
+</body>
+</html>
